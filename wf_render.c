@@ -44,7 +44,7 @@ vec2 project2D(vec3 point, vec3 campos, double f)
     return res;
 }
 
-obj *readObj(char *fname, int nTriangle)
+obj *readRaw(char *fname, int nTriangle)
 {
     /* Reads the object file and produces an obj struct */
     float t1x, t1y, t1z;
@@ -81,16 +81,61 @@ obj *readObj(char *fname, int nTriangle)
     return newobj;
 }
 
+obj *readObj(char *fname, int nTriangle, int nverts)
+{
+    /* Reads the object file and produces an obj struct */
+    float t1x, t1y, t1z;
+    int v1, v2, v3;
+    FILE *fd = fopen(fname, "r");
+    int i;
+    char *v;
+    obj *newobj = malloc(sizeof(obj));
+    triangle *trilist = malloc(nTriangle*sizeof(triangle));
+    vec3 *vertlist = malloc(nverts*sizeof(vec3)); 
+    triangle *newtriangle;
+    vec3 *newvert;
+    newobj->nFaces = nTriangle;
+    char objln[128];
+ 
+    for(i=0; i<nverts; i++)
+    {
+
+	fgets(objln, sizeof(objln), fd);
+    
+	sscanf(objln, "%s %f %f %f", v, &t1x, &t1y, &t1z);
+	newvert = &vertlist[i]; 
+	newvert->x = t1x;
+        newvert->y = t1y;
+        newvert->z = t1z;
+    }
+    fgets(objln, sizeof(objln), fd); 
+    for(i=0; i<nTriangle; i++)
+    {
+          fgets(objln, sizeof(objln), fd);
+          sscanf(objln, "%s %d %d %d", v, &v1, &v2, &v3);
+          newtriangle = &trilist[i];
+          newtriangle->a = vertlist[v1];
+          newtriangle->b = vertlist[v2];
+          newtriangle->c = vertlist[v3];
+    }
+    newobj->triangles = trilist;
+    return newobj;
+}
 void draw_line(vec2 *pta, vec2 *ptb)
 {
     /* draws a line between two points in the buffer */
     int x1, x2, y1, y2;
+    XWindowAttributes *wattr = malloc(sizeof(XWindowAttributes));
     
-    x1 = (int)round(pta->u * WIDTH);
-    x2 = (int)round(ptb->u * WIDTH);
-    y1 = (int)round(pta->v * HEIGHT);
-    y2 = (int)round(ptb->v * HEIGHT);
-
+    XGetWindowAttributes(dis, win, wattr);
+    int w = wattr->width;
+    int h = wattr->height;    
+    x1 = (int)floor(pta->u * w/2 + w/2);
+    x2 = (int)floor(ptb->u * w/2 + w/2);
+    y1 = (int)floor(pta->v * h/2 + h/2);
+    y2 = (int)floor(ptb->v * h/2 + h/2);
+/*    printf("%d %d %d %d \n", x1, y1, x2, y2); */
+    XDrawLine(dis, win, gc, x1, y1, x2, y2);
 }
 
 /*void init_vga()
@@ -100,7 +145,7 @@ void draw_line(vec2 *pta, vec2 *ptb)
     gl_setcontextvga(G320x200x256);
     physicalscreen = gl_allocatecontext();
     gl_getcontext(physicalscreen);
-    gl_setcontextvgavirtual(G320x200x256);
+    ne(dis,win,gc, x1,y1, x2,y2); gl_setcontextvgavirtual(G320x200x256);
     virtualscreen = gl_allocatecontext();
     gl_getcontext(virtualscreen);
 
@@ -123,9 +168,36 @@ void init_x()
         XClearWindow(dis, win);
         XMapRaised(dis, win);
 }
+void redraw()
+{
+    XClearWindow(dis, win);
+}
 
 int main()
 {
+    char *fname = "./teapot.obj";
+    int nTriangle = 6320;
+    int nverts = 3644;
+    obj *newobj = readObj(fname, nTriangle, nverts);   
+    int i;
+    double f = 0.5; 
+    vec3 campos = {0.0, 0.0, -4.0};
+    XEvent event;
+    /*for(i=0; i<nTriangle; i++)
+    {
+      printf("%f\n", newobj->triangles[i].b.y); 
+    }*/
 
+    init_x();
+    while(1)
+    {
+         XNextEvent(dis, &event);
+         renderWireframe(newobj, campos, f);
+
+         if(event.type==Expose && event.xexpose.count==0)
+         {
+             redraw();
+         }
+    }
 }
 
