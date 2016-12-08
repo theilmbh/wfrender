@@ -19,15 +19,20 @@ void renderWireframe(obj* object, vec3 campos, double f)
 {
     /* renders the object within the buffer */
     vec2 tra, trb, trc;
+    vec3 tra1, trb1, trc1;
     triangle cur_tri;
     int i;
 
     for(i=0; i<object->nFaces; i++)
     {
         cur_tri = object->triangles[i]; 
-	tra = project2D(cur_tri.a, campos, f);
-        trb = project2D(cur_tri.b, campos, f);
-        trc = project2D(cur_tri.c, campos, f);
+        tra1 = transform3D(cur_tri.a, object->xlat, object->orient);
+	trb1 = transform3D(cur_tri.b, object->xlat, object->orient);
+        trc1 = transform3D(cur_tri.c, object->xlat, object->orient);
+
+        tra = project2D(tra1, campos, f);
+        trb = project2D(trb1, campos, f);
+        trc = project2D(trc1, campos, f);
         draw_line(&tra, &trb);
         draw_line(&trb, &trc);
 	draw_line(&trc, &tra);	
@@ -42,6 +47,38 @@ vec2 project2D(vec3 point, vec3 campos, double f)
     res.u = (point.x-campos.x)*(f/dz);
     res.v = (point.y-campos.y)*(f/dz);
     return res;
+}
+
+vec3 hamiltonProduct(vec3 point, quat orient)
+{
+
+   double c = cos(orient.theta / 2);
+   double s = sin(orient.theta / 2);
+
+   vec3 res;
+   res.x = point.x*c + point.y*orient.uz*s - point.z*orient.uy*s;
+   res.y = -point.x*orient.uz*s + point.y*c + point.z*orient.ux*s;
+   res.z = point.x*orient.uy*s - point.y*orient.ux*s + point.z*c;
+
+   return res;
+}
+
+vec3 transform3D(vec3 point, vec3 xlat, quat orient)
+{
+
+   vec3 xlated;
+   xlated = hamiltonProduct(point, orient);
+   xlated.x = xlated.x + xlat.x;
+   xlated.y = xlated.y + xlat.y;
+   xlated.z = xlated.z + xlat.z;
+
+   return xlated;
+}
+
+void transformObj(obj* object, vec3 xlat, quat dorient)
+{
+    object->xlat = xlat;
+    object->orient = dorient;
 }
 
 obj *readRaw(char *fname, int nTriangle)
@@ -96,6 +133,8 @@ obj *readObj(char *fname, int nTriangle, int nverts)
     vec3 *newvert;
     newobj->nFaces = nTriangle;
     char objln[128];
+    vec3 xlat = {0.0, 0.0, 0.0};
+    quat orient = {0.0, 0.0, 0.0, 0.0};
  
     for(i=0; i<nverts; i++)
     {
@@ -119,6 +158,8 @@ obj *readObj(char *fname, int nTriangle, int nverts)
           newtriangle->c = vertlist[v3];
     }
     newobj->triangles = trilist;
+    newobj->xlat = xlat;
+    newobj->orient = orient;
     return newobj;
 }
 void draw_line(vec2 *pta, vec2 *ptb)
