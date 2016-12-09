@@ -125,7 +125,7 @@ obj *readObj(char *fname, int nTriangle, int nverts)
     int v1, v2, v3;
     FILE *fd = fopen(fname, "r");
     int i;
-    char *v;
+    char v;
     obj *newobj = malloc(sizeof(obj));
     triangle *trilist = malloc(nTriangle*sizeof(triangle));
     vec3 *vertlist = malloc(nverts*sizeof(vec3)); 
@@ -140,8 +140,8 @@ obj *readObj(char *fname, int nTriangle, int nverts)
     {
 
 	fgets(objln, sizeof(objln), fd);
-    
-	sscanf(objln, "%s %f %f %f", v, &t1x, &t1y, &t1z);
+        printf("Parsing vertex line: %s\n", objln); 
+	sscanf(objln, " %c %f %f %f", &v, &t1x, &t1y, &t1z);
 	newvert = &vertlist[i]; 
 	newvert->x = t1x;
         newvert->y = t1y;
@@ -151,11 +151,11 @@ obj *readObj(char *fname, int nTriangle, int nverts)
     for(i=0; i<nTriangle; i++)
     {
           fgets(objln, sizeof(objln), fd);
-          sscanf(objln, "%s %d %d %d", v, &v1, &v2, &v3);
+          sscanf(objln, " %c %d %d %d", &v, &v1, &v2, &v3);
           newtriangle = &trilist[i];
-          newtriangle->a = vertlist[v1];
-          newtriangle->b = vertlist[v2];
-          newtriangle->c = vertlist[v3];
+          newtriangle->a = vertlist[v1-1];
+          newtriangle->b = vertlist[v2-1];
+          newtriangle->c = vertlist[v3-1];
     }
     newobj->triangles = trilist;
     newobj->xlat = xlat;
@@ -169,14 +169,15 @@ void draw_line(vec2 *pta, vec2 *ptb)
     XWindowAttributes *wattr = malloc(sizeof(XWindowAttributes));
     
     XGetWindowAttributes(dis, win, wattr);
-    int w = wattr->width;
-    int h = wattr->height;    
-    x1 = (int)floor(pta->u * w/2 + w/2);
-    x2 = (int)floor(ptb->u * w/2 + w/2);
-    y1 = (int)floor(pta->v * h/2 + h/2);
-    y2 = (int)floor(ptb->v * h/2 + h/2);
-/*    printf("%d %d %d %d \n", x1, y1, x2, y2); */
+    float w = (float)wattr->width;
+    float h = (float)wattr->height;    
+    x1 = (int)round(pta->u * w/2 + w/2);
+    x2 = (int)round(ptb->u * w/2 + w/2);
+    y1 = (int)round(pta->v * -h/2 + h/2);
+    y2 = (int)round(ptb->v * -h/2 + h/2);
+    /*printf("%f %f %f %f \n", pta->u, pta->v, ptb->u, ptb->v);*/ 
     XDrawLine(dis, win, gc, x1, y1, x2, y2);
+    free(wattr);
 }
 
 /*void init_vga()
@@ -222,7 +223,7 @@ int main()
     obj *newobj = readObj(fname, nTriangle, nverts);   
     int i;
     double f = 0.5; 
-    vec3 campos = {0.0, 0.0, -4.0};
+    vec3 campos = {0.5, -0.0, -3.0};
     XEvent event;
     /*for(i=0; i<nTriangle; i++)
     {
@@ -239,6 +240,10 @@ int main()
          {
              redraw();
          }
+	 /*if(event.type==KeyPress&&XLookupString(&event.xkey, text, 255, &key, 0)==1
+	 {
+	   if(text[0]=='h'))
+                 */
     }
 }
 
